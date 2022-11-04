@@ -27,7 +27,7 @@ def process_img(image, vehicle, j):
     data_val = vehicle.get_control() 
     print(data_val.steer, data_val.throttle, data_val.brake, data_val.reverse)
 
-    with open('data.txt', 'a', encoding='utf-8') as f:
+    with open('output/data.txt', 'a', encoding='utf-8') as f:
         f.write(f"{data_val.steer} {data_val.throttle} {data_val.brake} {data_val.reverse} \n")
         # f.close()
 
@@ -41,7 +41,7 @@ def process_img(image, vehicle, j):
 actor_list = []
 try:
 
-    with open('data.txt', 'a', encoding='utf-8') as f:
+    with open('output/data.txt', 'a', encoding='utf-8') as f:
         f.write("steer throttle brake reverse \n")
         # f.close()
 

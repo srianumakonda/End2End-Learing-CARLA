@@ -1,2 +1,3 @@
 output/
 data.txt
+__pycache__/

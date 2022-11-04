@@ -1,3 +1,5 @@
-with open("output/data.txt") as f:
-    for i, line in enumerate(f):
-        print(i)
+import glob
+
+image = glob.glob("output/*.jpg")
+vals = [line for line in open("output/data.txt")]
+print(len(image), len(vals))
