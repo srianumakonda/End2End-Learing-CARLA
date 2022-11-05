@@ -35,12 +35,12 @@ if __name__ == '__main__':
     dataset = CARLAPreprocess(transform=transform)
     # MIN, MAX = dataset.get_min_max()  
     train, val = torch.utils.data.random_split(dataset, [int(len(dataset)*(1-VALIDATION_SPLIT)), int(len(dataset)*VALIDATION_SPLIT)+1])
-    trainloader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True) 
+    trainloader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, num_workers=2, pin_memory=True) #tested and confirmed that num_worked=2 works best for me: https://chtalhaanwar.medium.com/pytorch-num-workers-a-tip-for-speedy-training-ed127d825db7
     valloader = torch.utils.data.DataLoader(val, batch_size=BATCH_SIZE, shuffle=False)
 
-    # steering_model = SteeringModel().to(device)
-    # optimizer = torch.optim.Adam(steering_model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-    # criterion = torch.nn.MSELoss()
+    steering_model = SteeringModel().to(device)
+    optimizer = torch.optim.Adam(steering_model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+    criterion = torch.nn.MSELoss()
     # summary(steering_model, (3, 128, 256))
 
     # if LOAD_MODEL:
@@ -57,17 +57,6 @@ if __name__ == '__main__':
     # print(len(dataset))
     # img, values = next(iter(trainloader))
     # print(img, values)
-
-    from time import time
-    import multiprocessing as mp
-    for num_workers in range(2, mp.cpu_count(), 2):  
-        train_loader = torch.utils.data.DataLoader(dataset,shuffle=True,num_workers=num_workers,batch_size=64,pin_memory=True)
-        start = time()
-        for epoch in range(1, 3):
-            for i, data in enumerate(train_loader, 0):
-                pass
-        end = time()
-        print("Finish with:{} second, num_workers={}".format(end - start, num_workers))
 
 
     # print("Starting training...")
