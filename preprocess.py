@@ -9,7 +9,7 @@ import os
 
 class CARLAPreprocess(Dataset):
 
-    def __init__(self, transform=None):
+    def __init__(self, transform):
         super(CARLAPreprocess, self).__init__()
         self.transform = transform
         self.image = glob.glob("output/*.jpg")
@@ -18,13 +18,13 @@ class CARLAPreprocess(Dataset):
         self.steer = []
         self.throttle = []
         self.brake = []
-        self.reverse = []
+        # self.reverse = []
 
         for i in self.vals:
             self.steer.append(float(i.split()[0]))
             self.throttle.append(float(i.split()[1]))
             self.brake.append(float(i.split()[2])) #it's 0.0 throughout but ill just leave it like that
-            self.reverse.append(i.split()[3])
+            # self.reverse.append(0 if i.split()[3]=="False" else 1)
 
     def __len__(self):
         return len(self.image)
@@ -36,8 +36,8 @@ class CARLAPreprocess(Dataset):
         steer = self.steer[idx]
         throttle = self.throttle[idx]
         brake = self.brake[idx]
-        reverse = self.reverse[idx]
+        # reverse = self.reverse[idx]
 
         if self.transform:
             img = self.transform(img)
-        return img, [steer, throttle, brake, reverse]
+        return img, torch.tensor([steer, throttle, brake])

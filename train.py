@@ -17,22 +17,27 @@ ROOT = "output/"
 MIN, MAX = 0, 0
 WEIGHT_DECAY = 1e-6
 VALIDATION_SPLIT = 0.2
-BATCH_SIZE = 1
-EPOCHS = 50
-LR = 1e-4
+BATCH_SIZE = 32
+EPOCHS = 20
+LR = 1e-2
 CHECKPOINT_EPOCH = 0
 BEST_LOSS = 1e10
 LOAD_MODEL = False
 SAVE_MODEL = True
 TRAINING =  True
 
+"""
+BASED OFF OUR DATA, WE ASSUME THAT THE BRAKE AND 
+"""
+
 if __name__ == '__main__':
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    transform = torchvision.transforms.Compose([
+    # device = torch.device("cpu")
+    transformer = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
     ])
-    dataset = CARLAPreprocess(transform=transform)
+    dataset = CARLAPreprocess(transform=transformer)
     # MIN, MAX = dataset.get_min_max()  
     train, val = torch.utils.data.random_split(dataset, [int(len(dataset)*(1-VALIDATION_SPLIT)), int(len(dataset)*VALIDATION_SPLIT)+1])
     trainloader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, num_workers=2, pin_memory=True) #tested and confirmed that num_worked=2 works best for me: https://chtalhaanwar.medium.com/pytorch-num-workers-a-tip-for-speedy-training-ed127d825db7
@@ -40,8 +45,8 @@ if __name__ == '__main__':
 
     steering_model = SteeringModel().to(device)
     optimizer = torch.optim.Adam(steering_model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-    criterion = torch.nn.MSELoss()
-    # summary(steering_model, (3, 128, 256))
+    criterion1 = torch.nn.MSELoss()
+    criterion2 = torch.nn.BCELoss()
 
     # if LOAD_MODEL:
     #     print("Loading models...")
@@ -54,50 +59,85 @@ if __name__ == '__main__':
     #     print("Done!")
     #     print('-'*20) 
 
-    # print(len(dataset))
-    # img, values = next(iter(trainloader))
-    # print(img, values)
-
 
     # print("Starting training...")
-    # for epoch in range(CHECKPOINT_EPOCH, CHECKPOINT_EPOCH+EPOCHS):
+    for epoch in range(CHECKPOINT_EPOCH, CHECKPOINT_EPOCH+EPOCHS):
 
-    #     steering_model.train()
-    #     for idx, (img,angle) in enumerate(trainloader):
-    #         optimizer.zero_grad()
-    #         img = img.to(device, dtype=torch.float)
-    #         angle = angle.to(device, dtype=torch.float).view(-1)
-    #         output = steering_model(img).view(-1)
-    #         loss = criterion(output, angle)
-    #         loss.backward()
-    #         optimizer.step()
+        steering_model.train()
+        for idx, (img,truth) in enumerate(trainloader):
+            optimizer.zero_grad()
+            img = img.to(device, dtype=torch.float)
+            truth = truth.to(device, dtype=torch.float)
 
-    #         if idx % (len(trainloader)//5) == 0:
-    #             print(f"Epoch: [{epoch+1}/{CHECKPOINT_EPOCH+EPOCHS}] Index: [{idx}/{len(trainloader)}] Loss: {loss.item()}")
+            pred = steering_model(img).to(device)
+
+            # print(pred[0], truth[0].clone())
+            # print(pred[:,1:].clone(), truth[:,1:].clone())
+
+            loss = criterion1(pred, truth)
+
+            # loss1 = criterion1(pred[:,0], truth[:,0]) #steering difference
+            # loss2 = criterion2(pred[:,1:], pred[:,1:]) #binary classification on all others
+            
+            # loss = loss1 + loss2 #take sum of losses and backpropogate w.r.t. that
+            # loss1.backward()
+            # loss2.backward()
+            loss.backward()
+            optimizer.step()
+
+            if idx % (len(trainloader)//5) == 0:
+                print(f"Epoch: [{epoch+1}/{CHECKPOINT_EPOCH+EPOCHS}] Index: [{idx}/{len(trainloader)}] Cumulative Loss: {loss.item()}")#Steering Loss: {loss1.item()} Throttle, Brake, Reverse Loss: {loss2.item()}")
+
+
+        # steering_model.train()
+        # for idx, (img,truth) in enumerate(trainloader):
+        #     optimizer.zero_grad()
+        #     img = img.to(device, dtype=torch.float)
+        #     truth = truth.to(device, dtype=torch.float).view(-1)
+
+        #     steer, other = steering_model(img)
+        #     steer = steer.to(device)
+        #     other = other.to(device)
+
+        #     # print(pred[0], truth[0].clone())
+        #     # print(pred[1:].clone(), truth[1:].clone())
+
+        #     loss1 = criterion1(steer[0], truth[0]) #steering difference
+        #     loss2 = criterion2(other[1:], truth[1:]) #binary classification on all others
+            
+        #     loss = loss1 + loss2 #take sum of losses and backpropogate w.r.t. that
+        #     # loss1.backward()
+        #     # loss2.backward()
+        #     loss.backward()
+        #     optimizer.step()
         
-    #     running_val_loss = 0.0
-    #     steering_model.eval() 
-    #     with torch.no_grad(): 
-    #         for idx, (img,angle) in enumerate(valloader, 0):
-    #             img = img.to(device, dtype=torch.float)
-    #             angle = angle.to(device, dtype=torch.float).view(-1)
-    #             output = steering_model(img).view(-1)
-    #             loss = criterion(output, angle)
-    #             running_val_loss += loss.item()
-    #     print(f"Validation Loss: {running_val_loss/len(valloader)}")
+        running_val_loss = 0.0
+        steering_model.eval() 
+        with torch.no_grad(): 
+            for idx, (img,truth) in enumerate(valloader, 0):
+                img = img.to(device, dtype=torch.float)
+                truth = truth.to(device, dtype=torch.float)
+                pred = steering_model(img)
+                loss = criterion1(pred, truth)
+                # loss2 = criterion2(other[1:], truth[1:])
+                running_val_loss += loss.item()
+        print(f"Validation Loss: {running_val_loss/len(valloader)}")
 
-    #     if (running_val_loss/len(valloader)) < BEST_LOSS: 
-    #         if SAVE_MODEL:
-    #             print("Saving model...")
-    #             torch.save({
-    #                 'epoch': epoch,
-    #                 'model_state': steering_model.state_dict(),
-    #                 'optim_state': optimizer.state_dict(),
-    #                 'loss': loss.item(),
-    #             }, f"saved_models/steering_64bs.pth")
-    #             print("Done!")
-    #             BEST_LOSS = running_val_loss
-    #             print('-'*20)
+        print(running_val_loss/len(valloader), BEST_LOSS)
+
+        if (running_val_loss/len(valloader)) < BEST_LOSS: 
+            if SAVE_MODEL:
+                print("Saving model...")
+                torch.save({
+                    'epoch': epoch,
+                    'model_state': steering_model.state_dict(),
+                    'optim_state': optimizer.state_dict(),
+                    'loss': loss.item(),
+                    # 'loss2': loss.item(),
+                }, "steering.pth")
+                print("Done!")
+                BEST_LOSS = running_val_loss
+                print('-'*20)
 
     # else:
     #     dataset = SteeringDataset(ROOT, CROP)

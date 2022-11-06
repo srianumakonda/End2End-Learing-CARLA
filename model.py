@@ -14,21 +14,36 @@ class SteeringModel(nn.Module):
             self._block(16, 32, 3),
             self._block(32, 64, 3),
             self._block(64, 128, 3),
-            nn.Conv2d(128, 1, 1, stride=[4,3]),
-            nn.BatchNorm2d(1),
-            nn.ReLU(),
             nn.Flatten(),
+            # nn.Dropout(0.3),
+            nn.Linear(6144, 512),
+            nn.ReLU(),
+            # nn.Dropout(0.3),
+            # nn.Linear(512,3),
         )
 
-        # self._init_weights()
+        self.steer = nn.Linear(512,1)
+        self.other = nn.Linear(512,2)
+        self.out = nn.Linear(512,3)
+
+        self._init_weights()
 
     def forward(self, x):
-        x = self.model(x).view(-1)
-        x[0] = torch.tanh(x[0]) #we take the domain to be between [-1, 1] but we can then multiply it by 70 to know the min and max steering values (carla only accepts [-1, 1] as the domain for the steering control)
-        x[1] = torch.sigmoid(x[1])
-        x[2] = torch.sigmoid(x[2])
-        x[3] = torch.sigmoid(x[3])
-        return x
+        x = self.model(x)
+        out = self.out(x)
+        # steer = torch.tanh(self.steer(x))
+        # other = torch.sigmoid(self.other(x))
+        # out = torch.tensor(torch.cat((steer,other),dim=1).requires_grad_(True),requires_grad=True)
+        return out
+
+        # print(x[:,0])
+
+        # steer = torch.tanh(x[:,0]) #we take the domain to be between [-1, 1] but we can then multiply it by 70 to know the min and max steering values (carla only accepts [-1, 1] as the domain for the steering control)
+        # throttle = torch.sigmoid(x[:,1])
+        # brake = torch.sigmoid(x[:,2])
+        # # print(steer)
+        # # reverse = torch.sigmoid(x[3])
+        # return torch.tensor((steer, throttle, brake), requires_grad=True)#brake, reverse], requires_grad=True)
 
     def _init_weights(self):
         for m in self.modules():
@@ -45,9 +60,11 @@ class SteeringModel(nn.Module):
         return nn.Sequential(
             nn.Conv2d(channel_in, channel_out, kernel_size, stride=stride),
             nn.BatchNorm2d(channel_out),
+            # nn.Dropout(0.2),
             nn.ReLU(),
             nn.Conv2d(channel_out, channel_out, kernel_size, stride=stride),
             nn.BatchNorm2d(channel_out),
+            # nn.Dropout(0.2),
             nn.ReLU(),
             nn.MaxPool2d((2,2)),
         )
@@ -56,8 +73,14 @@ class SteeringModel(nn.Module):
 if __name__ == "__main__":
     steering_model = SteeringModel().to("cuda")
 
-    y = steering_model(torch.randn((1,3,128,256),requires_grad=False).to("cuda"))
-    print(y.view(-1))
+    y = steering_model(torch.randn((64,3,128,256),requires_grad=False).to("cuda"))
+    print(y)
+    for i in y[:,1]:
+        if i<0:
+            print("False")
+    for i in y[:,2]:
+        if i<0:
+            print("False")
     # with torch.no_grad():
     #     print(i for i in x)
     # summary(steering_model, (3, 128, 256))
