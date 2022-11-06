@@ -19,7 +19,7 @@ WEIGHT_DECAY = 1e-6
 VALIDATION_SPLIT = 0.2
 BATCH_SIZE = 32
 EPOCHS = 20
-LR = 1e-2
+LR = 5e-3
 CHECKPOINT_EPOCH = 0
 BEST_LOSS = 1e10
 LOAD_MODEL = False
@@ -136,7 +136,7 @@ if __name__ == '__main__':
                     # 'loss2': loss.item(),
                 }, "steering.pth")
                 print("Done!")
-                BEST_LOSS = running_val_loss
+                BEST_LOSS = running_val_loss/len(valloader)
                 print('-'*20)
 
     # else:

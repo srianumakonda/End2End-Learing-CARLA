@@ -14,6 +14,10 @@ import random
 import time
 import numpy as np
 import cv2
+import torch
+from model import SteeringModel
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 IM_WIDTH = 256
 IM_HEIGHT = 128
@@ -27,11 +31,6 @@ def process_img(image, vehicle, j):
     data_val = vehicle.get_control() 
     print(data_val.steer, data_val.throttle, data_val.brake, data_val.reverse)
 
-    with open('output/data.txt', 'a', encoding='utf-8') as f:
-        f.write(f"{data_val.steer} {data_val.throttle} {data_val.brake} {data_val.reverse} \n")
-        # f.close()
-
-    cv2.imwrite(f"output/{j[0]}.jpg", i3)
     j[0]+=1
     cv2.imshow("", i3)
     cv2.waitKey(20)
@@ -41,15 +40,10 @@ def process_img(image, vehicle, j):
 actor_list = []
 try:
 
-    with open('output/data.txt', 'a', encoding='utf-8') as f:
-        f.write("steer throttle brake reverse \n")
-        # f.close()
-
     client = carla.Client('localhost', 2000)
     client.set_timeout(200.0)
     # world = client.get_world()
     world = client.load_world('Town04')
-    # print(client.get_available_maps())
     client.reload_world()
 
     blueprint_library = world.get_blueprint_library()
@@ -61,8 +55,10 @@ try:
     vehicle = world.spawn_actor(bp, spawn_point)
     # vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=0.0))
     vehicle.set_autopilot(True)
-
     actor_list.append(vehicle)
+
+    model = SteeringModel().to(device)
+    model.load_state_dict(torch.load("steering.pth"))
 
     blueprint = blueprint_library.find('sensor.camera.rgb')
     blueprint.set_attribute('image_size_x', f"{IM_WIDTH}")
@@ -72,7 +68,7 @@ try:
     sensor = world.spawn_actor(blueprint, spawn_point, attach_to=vehicle)
     actor_list.append(sensor)
 
-    sensor.listen(lambda data: process_img(data, vehicle, j))
+    sensor.listen(lambda data: process_img(data, vehicle, j, model))
     time.sleep(60)
 
 finally:
