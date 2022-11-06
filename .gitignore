@@ -1,3 +1,4 @@
 output/
 data.txt
 __pycache__/
+steering.pth
