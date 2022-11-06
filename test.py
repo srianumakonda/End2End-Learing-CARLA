@@ -19,6 +19,8 @@ from model import SteeringModel
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
+
 IM_WIDTH = 256
 IM_HEIGHT = 128
 j = [0]
@@ -58,7 +60,8 @@ try:
     actor_list.append(vehicle)
 
     model = SteeringModel().to(device)
-    model.load_state_dict(torch.load("steering.pth"))
+    checkpoint = torch.load("saved_models/steering.pth")
+    model.load_state_dict(checkpoint['model_state'])
 
     blueprint = blueprint_library.find('sensor.camera.rgb')
     blueprint.set_attribute('image_size_x', f"{IM_WIDTH}")
@@ -68,7 +71,7 @@ try:
     sensor = world.spawn_actor(blueprint, spawn_point, attach_to=vehicle)
     actor_list.append(sensor)
 
-    sensor.listen(lambda data: process_img(data, vehicle, j, model))
+    sensor.listen(lambda data: process_img(data, vehicle, j))
     time.sleep(60)
 
 finally:
